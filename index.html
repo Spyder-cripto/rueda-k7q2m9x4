@@ -50,6 +50,9 @@ circle.halo{fill:none;stroke:#ff4f9a;stroke-width:5;stroke-dasharray:6 6;opacity
 .arc.dup text{fill:var(--red)}
 .centro{font-size:64px;font-weight:900;text-anchor:middle;dominant-baseline:central;fill:#2b2350}
 .centro2{font-size:20px;text-anchor:middle;fill:#5d4aa0;font-weight:bold}
+.chips{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin:6px auto 0;max-width:470px}
+.chip{min-width:30px;padding:3px 6px;border-radius:9px;background:#e6e0f5;color:#8b84a8;font-weight:bold;font-size:15px;text-align:center}
+.chip.on{background:#19c37d;color:#fff}.chip.dup{background:var(--red);color:#fff}
 .msg{min-height:56px;text-align:center;font-size:17px;line-height:1.35;margin:10px 0 4px}
 .pad{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;max-width:440px;margin:8px auto 0}
 .pad button{font:inherit;font-size:clamp(20px,5vw,26px);font-weight:900;color:#fff;border:none;border-radius:14px;padding:10px 0;cursor:pointer;box-shadow:0 4px 0 #0003}
@@ -67,15 +70,17 @@ summary{cursor:pointer;font-weight:bold}
 <body>
 <main>
 <h1>La rueda de sumas</h1>
-<p class="sub">Escribe un número en cada <b>círculo</b>. Los de fuera son la suma de los dos círculos vecinos.</p>
+<p class="sub">Los círculos suman el número del centro. Con un círculo, o con varios <b>seguidos</b>, hay que conseguir <b>todos los números menores</b>, una vez cada uno.</p>
 
 <div class="card c-juego">
  <div class="levels" id="levels"></div>
  <div class="stats">
   <div class="pill" id="pSuma">Suma de los círculos: <b id="sumaV">0</b> de <b id="metaV">7</b></div>
+  <div class="pill" id="pCub">Números conseguidos: <b id="cubV">0</b> de <b id="cubM">6</b></div>
   <div class="pill" id="pRep">Repetidos: <b id="repV">0</b></div>
  </div>
  <svg id="svg" viewBox="-240 -240 480 480" aria-label="Rueda de círculos"></svg>
+ <div class="chips" id="chips"></div>
  <div class="msg" id="msg"></div>
  <div class="pad" id="pad"></div>
 </div>
@@ -89,13 +94,14 @@ summary{cursor:pointer;font-weight:bold}
 
 <div class="card c-ayuda">
 <details open><summary>Cómo se juega</summary>
-<p>Toca un círculo y escribe su número con el teclado de colores (o con el del ordenador). Cada número de fuera aparece solo, cuando sus dos círculos vecinos tienen número.</p>
-<p>Para resolverlo hacen falta <b>dos cosas</b>, como en el ejemplo (<b>1 + 2 + 4 = 7</b>, con 3, 5 y 6 fuera):</p>
+<p>Toca un círculo y escribe su número con el teclado de colores (o con el del ordenador). Los números de fuera son la suma de los dos círculos vecinos y aparecen solos.</p>
+<p>El criterio, como en el ejemplo (círculos <b>1, 2 y 4</b>, centro <b>7</b>):</p>
 <ul>
-<li>Los círculos <b>suman</b> el número del centro.</li>
-<li><b>No se repite ningún número</b>: ni entre los círculos, ni entre los de fuera, ni entre unos y otros. Los repetidos se pintan de rojo.</li>
+<li>Los círculos <b>suman</b> el número del centro: 1 + 2 + 4 = 7.</li>
+<li>Hay que conseguir <b>todos los números del 1 hasta uno menos que el centro</b>, ya sea con un círculo solo o sumando <b>círculos seguidos</b> (dos, tres… dando la vuelta si hace falta): 1, 2, 4; 1+2 = 3; 4+1 = 5; 2+4 = 6.</li>
+<li>Cada número sale <b>una sola vez</b>. Los repetidos se ponen en rojo, y la fila de abajo se va iluminando con los números que ya tienes.</li>
 </ul>
-<p>Cualquier solución vale. Si te atascas, la <b>pista</b> rellena un círculo.</p>
+<p>Si te atascas, la <b>pista</b> rellena un círculo.</p>
 </details>
 </div>
 </main>
@@ -112,17 +118,17 @@ const $=id=>document.getElementById(id);
 const svg=$('svg'),msg=$('msg');
 let lv=0,K=3,N=7,vals=[],sel=0,hist=[],won=false,hintIdx=-1,solTok=0,SOLS=[],CLASES=0;
 
-// todas las soluciones (con giros y espejos): números positivos distintos que suman N y con los 2k números distintos
+// el criterio (comentario de Spider en el blog): los k círculos suman N y TODOS los números del 1 al N-1 se consiguen,
+// una vez cada uno, como un círculo solo o como la suma de círculos contiguos (dando la vuelta al anillo si hace falta)
+function arcosOk(c,N){
+ const k=c.length,vistos=new Set();
+ for(let i=0;i<k;i++){let s=0;for(let l=1;l<k;l++){s+=c[(i+l-1)%k];if(s>=N||vistos.has(s))return false;vistos.add(s)}}
+ return vistos.size===N-1}
 function resolver(k,N){
- const res=[],c=Array(k).fill(0),usados=new Set();
+ const res=[],c=Array(k).fill(0);
  (function rec(i,s){
-  if(i===k){
-   if(s!==N)return;
-   const nums=new Set(c);
-   for(let j=0;j<k;j++){const a=c[j]+c[(j+1)%k];if(nums.has(a))return;nums.add(a)}
-   res.push(c.slice());return}
-  const resto=k-i-1;
-  for(let v=1;v<=N-s-resto;v++){if(usados.has(v))continue;c[i]=v;usados.add(v);rec(i+1,s+v);usados.delete(v)}
+  if(i===k-1){c[i]=N-s;if(c[i]>0&&arcosOk(c,N))res.push(c.slice());return}
+  for(let v=1;v<=N-s-(k-i-1);v++){c[i]=v;rec(i+1,s+v)}
  })(0,0);
  return res}
 function clases(sols,k){
@@ -138,20 +144,20 @@ function setLevel(i){
  $('metaV').textContent=N;
  reset()}
 function reset(){solTok++;vals=Array(K).fill(0);sel=0;hist=[];won=false;hintIdx=-1;
- say('Toca un círculo y escribe un número. Este nivel tiene <b>'+CLASES+'</b> '+(CLASES===1?'solución':'soluciones distintas')+' (sin contar giros ni espejos).');
+ say('Toca un círculo y escribe un número. Hay que conseguir todos los números del <b>1</b> al <b>'+(N-1)+'</b>. Este nivel tiene <b>'+CLASES+'</b> '+(CLASES===1?'solución':'soluciones distintas')+' (sin contar giros ni espejos).');
  render()}
 function say(t){msg.innerHTML=t}
 
 function arcs(){return vals.map((v,i)=>{const w=vals[(i+1)%K];return v>0&&w>0?v+w:0})}
-// números repetidos: todos los círculos y arcos conocidos
+// cuántas veces se consigue cada número: círculo solo o varios círculos seguidos ya escritos
 function analiza(){
  const cuenta=new Map(),a=arcs();
- vals.forEach(v=>{if(v>0)cuenta.set(v,(cuenta.get(v)||0)+1)});
- a.forEach(v=>{if(v>0)cuenta.set(v,(cuenta.get(v)||0)+1)});
- const rep=new Set();cuenta.forEach((n,v)=>{if(n>1)rep.add(v)});
+ for(let i=0;i<K;i++){let s=0;for(let l=1;l<K;l++){const v=vals[(i+l-1)%K];if(!v)break;s+=v;cuenta.set(s,(cuenta.get(s)||0)+1)}}
+ const rep=new Set(),cub=new Set();
+ cuenta.forEach((n,v)=>{if(v<N)cub.add(v);if(n>1||v>=N)rep.add(v)});
  const suma=vals.reduce((s,v)=>s+v,0);
  const lleno=vals.every(v=>v>0);
- return {a,rep,suma,lleno,ok:lleno&&suma===N&&rep.size===0}}
+ return {a,rep,cub,cuenta,suma,lleno,ok:lleno&&suma===N&&rep.size===0&&cub.size===N-1}}
 
 function pos(i,r){const ang=-Math.PI/2+i*2*Math.PI/K;return [r*Math.cos(ang),r*Math.sin(ang)]}
 function render(popIdx){
@@ -171,9 +177,10 @@ function render(popIdx){
  s+='<text class="centro" y="-8">'+N+'</text><text class="centro2" y="42">'+(an.suma||0)+' de '+N+'</text>';
  svg.innerHTML=s;
  svg.querySelectorAll('.node').forEach(g=>g.addEventListener('click',()=>{selecciona(+g.dataset.i)}));
- $('sumaV').textContent=an.suma;$('repV').textContent=an.rep.size;
+ $('sumaV').textContent=an.suma;$('repV').textContent=an.rep.size;$('cubV').textContent=an.cub.size;$('cubM').textContent=N-1;
+ $('chips').innerHTML=Array.from({length:N-1},(_,i)=>{const v=i+1,c=an.cuenta.get(v)||0;return '<span class="chip'+(c>1?' dup':c===1?' on':'')+'">'+v+'</span>'}).join('');
  $('pSuma').className='pill'+(an.lleno&&an.suma!==N?' bad':an.suma===N?' ok':'');
- $('pRep').className='pill'+(an.rep.size?' bad':'');
+ $('pCub').className='pill'+(an.cub.size===N-1&&!an.rep.size?' ok':'');$('pRep').className='pill'+(an.rep.size?' bad':'');
  return an}
 function selecciona(i){sel=i;hintIdx=-1;render()}
 
@@ -185,14 +192,14 @@ function cambia(i,v,popear){
 function estado(an){
  if(an.ok){gana();return}
  const rep=[...an.rep].sort((a,b)=>a-b);
- if(rep.length)say('El número <b>'+rep.join(', ')+'</b> aparece más de una vez (en rojo). No se puede repetir ninguno.'+(an.lleno&&an.suma!==N?' Además, los círculos suman <b>'+an.suma+'</b> y tienen que sumar <b>'+N+'</b>.':''));
+ if(rep.length)say('El número <b>'+rep.join(', ')+'</b> se consigue más de una vez (en rojo). Cada número tiene que salir una sola vez.'+(an.lleno&&an.suma!==N?' Además, los círculos suman <b>'+an.suma+'</b> y tienen que sumar <b>'+N+'</b>.':''));
  else if(an.lleno&&an.suma!==N)say('Los círculos suman <b>'+an.suma+'</b> y tienen que sumar <b>'+N+'</b>.');
  else if(an.lleno)say('Casi…');
- else say('Sigue: faltan <b>'+vals.filter(v=>!v).length+'</b> círculos. Suman <b>'+an.suma+'</b> de <b>'+N+'</b>.')}
+ else say('Sigue: faltan <b>'+vals.filter(v=>!v).length+'</b> círculos. Llevas <b>'+an.cub.size+'</b> de los <b>'+(N-1)+'</b> números.')}
 function gana(){
  won=true;render();
  const a=arcs();
- say('🎉 <b>¡Resuelto!</b> '+vals.join(' + ')+' = '+N+', y fuera: '+a.join(', ')+'. No se repite ningún número.');
+ say('🎉 <b>¡Resuelto!</b> '+vals.join(' + ')+' = '+N+'. Salen todos los números del 1 al '+(N-1)+', una sola vez cada uno.');
  confeti()}
 
 // teclado de colores
@@ -245,7 +252,7 @@ $('bSol').onclick=async()=>{
  await new Promise(r=>setTimeout(r,500));
  if(tok!==solTok)return;
  const an=analiza();won=true;render();
- say('🔑 Una solución: '+s.join(' + ')+' = '+N+', y fuera: '+an.a.join(', ')+'. Hay '+CLASES+' '+(CLASES===1?'solución':'soluciones distintas')+'.')};
+ say('🔑 Una solución: '+s.join(' + ')+' = '+N+'. Hay '+CLASES+' '+(CLASES===1?'solución':'soluciones distintas')+' (sin contar giros ni espejos).')};
 function deshacer(){solTok++;if(!hist.length)return;vals=hist.pop();won=false;hintIdx=-1;const an=render();estado(an)}
 $('bUndo').onclick=deshacer;
 $('bReset').onclick=reset;

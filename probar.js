@@ -11,7 +11,7 @@ const { chromium } = require('playwright');
   let fallos = 0; const mal = (t) => { fallos++; console.log('FALLO: ' + t); };
   const texto = (id) => pag.textContent(id);
   // 1) las soluciones de cada nivel (con giros y espejos: se cuentan las clases en el mensaje)
-  const esperadas = [1, 2, 6, 105];
+  const esperadas = [1, 2, 1, 5];
   for (let i = 0; i < 4; i++) {
     await pag.evaluate((n) => window.__juego.setLevel(n), i);
     const m = await texto('#msg'), n = await pag.evaluate(() => window.__juego.SOLS.length);
