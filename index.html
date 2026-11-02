@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>La rueda de sumas</title>
+<meta name="description" content="Un acertijo de círculos y sumas: rellena los círculos para que sumen el número del centro y no se repita ningún número.">
+<style>
+:root{--ink:#2b2350;--card:#ffffffd9;--pink:#ff4f9a;--blue:#2f7bff;--green:#19c37d;--orange:#ff9a1f;--violet:#b03fd0;--red:#e5254f}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{font-family:"Trebuchet MS",Verdana,sans-serif;color:var(--ink);min-height:100vh;
+ background:linear-gradient(120deg,#ffc9d9,#ffd9b0 16%,#fff1a8 32%,#c9f2a8 48%,#8fe3a3 64%,#b9ed9a 80%,#fff0b0);background-attachment:fixed;padding:16px}
+main{max-width:760px;margin:0 auto}
+h1{margin:4px 0 2px;text-align:center;font-size:clamp(28px,7vw,44px);letter-spacing:.5px;
+ background:linear-gradient(90deg,var(--pink),var(--orange),#e5b800,var(--green),#0e9f6e,var(--violet));
+ -webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{text-align:center;margin:0 0 14px;font-size:16px;line-height:1.4}
+.card{background:var(--card);border-radius:22px;padding:16px;box-shadow:0 8px 24px #5b3fa033;margin-bottom:14px}
+.c-juego{background:linear-gradient(135deg,#ffd9e8,#fff0b3 50%,#d4f5c4)}
+.c-botones{background:linear-gradient(135deg,#ffe2b8,#ffd0e3)}
+.c-ayuda{background:linear-gradient(135deg,#d9f5c9,#fff2b0)}
+.levels{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:10px}
+.lvl{font:inherit;font-weight:bold;border:none;border-radius:999px;padding:8px 16px;background:#ffd0e3;color:#2b2350;cursor:pointer;box-shadow:0 2px 6px #0002}
+.lvl.on{background:#ff9a1f;color:#fff}
+.stats{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.pill{background:#ffe9a8;border-radius:999px;padding:6px 16px;font-weight:bold;box-shadow:0 2px 6px #0002}
+.pill b{color:var(--pink);font-size:20px}
+.pill.bad{background:#ffd0d8}.pill.bad b{color:var(--red)}
+.pill.ok{background:#c9f5df}.pill.ok b{color:#0a8f55}
+svg{display:block;margin:0 auto;width:100%;max-width:470px;height:auto;touch-action:manipulation}
+.ring{fill:none;stroke:#2b2350;stroke-width:5}
+.node{cursor:pointer;transform-box:fill-box;transform-origin:center}
+.node circle.c{stroke:#2b2350;stroke-width:4;transition:fill .25s}
+.node.empty circle.c{fill:#fff;stroke-dasharray:8 6}
+.node.sel circle.c{stroke:#ff4f9a;stroke-width:7}
+.node text{font-weight:900;font-size:34px;text-anchor:middle;dominant-baseline:central;fill:#fff;paint-order:stroke;stroke:#0004;stroke-width:3px;pointer-events:none}
+.node.dup circle.c{stroke:var(--red);stroke-width:7}
+.node.hint circle.halo{opacity:1}
+circle.halo{fill:none;stroke:#ff4f9a;stroke-width:5;stroke-dasharray:6 6;opacity:0}
+.node.pop{animation:pop .45s}
+.node.win{animation:win 1s infinite alternate}
+@keyframes pop{30%{transform:scale(1.2)}70%{transform:scale(.95)}}
+@keyframes win{to{transform:translateY(-8px)}}
+.arc rect{fill:#fff5c9;stroke:#d8a900;stroke-width:3}
+.arc text{font-size:26px;font-weight:bold;text-anchor:middle;dominant-baseline:central;fill:#2b2350}
+.arc.unk text{fill:#b9a96a;font-weight:normal}
+.arc.dup rect{fill:#ffd0d8;stroke:var(--red)}
+.arc.dup text{fill:var(--red)}
+.centro{font-size:64px;font-weight:900;text-anchor:middle;dominant-baseline:central;fill:#2b2350}
+.centro2{font-size:20px;text-anchor:middle;fill:#5d4aa0;font-weight:bold}
+.msg{min-height:56px;text-align:center;font-size:17px;line-height:1.35;margin:10px 0 4px}
+.pad{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;max-width:440px;margin:8px auto 0}
+.pad button{font:inherit;font-size:clamp(20px,5vw,26px);font-weight:900;color:#fff;border:none;border-radius:14px;padding:10px 0;cursor:pointer;box-shadow:0 4px 0 #0003}
+.pad button:active{transform:translateY(2px)}
+.pad .del{background:#ff4f6d}
+.btns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.btn{font:inherit;font-size:17px;font-weight:bold;border:none;border-radius:14px;padding:12px 22px;color:#fff;cursor:pointer;box-shadow:0 4px 0 #0003}
+.btn:active{transform:translateY(2px)}
+.b-hint{background:var(--orange)}.b-sol{background:var(--violet)}.b-undo{background:#0e9f6e}.b-reset{background:var(--pink)}
+details{font-size:16px;line-height:1.5}
+summary{cursor:pointer;font-weight:bold}
+#fx{position:fixed;inset:0;pointer-events:none;z-index:9}
+</style>
+</head>
+<body>
+<main>
+<h1>La rueda de sumas</h1>
+<p class="sub">Escribe un número en cada <b>círculo</b>. Los de fuera son la suma de los dos círculos vecinos.</p>
+
+<div class="card c-juego">
+ <div class="levels" id="levels"></div>
+ <div class="stats">
+  <div class="pill" id="pSuma">Suma de los círculos: <b id="sumaV">0</b> de <b id="metaV">7</b></div>
+  <div class="pill" id="pRep">Repetidos: <b id="repV">0</b></div>
+ </div>
+ <svg id="svg" viewBox="-240 -240 480 480" aria-label="Rueda de círculos"></svg>
+ <div class="msg" id="msg"></div>
+ <div class="pad" id="pad"></div>
+</div>
+
+<div class="card c-botones btns">
+ <button class="btn b-hint" id="bHint">💡 Pista</button>
+ <button class="btn b-sol" id="bSol">🔑 Solución</button>
+ <button class="btn b-undo" id="bUndo">↩ Deshacer</button>
+ <button class="btn b-reset" id="bReset">⟲ Reiniciar</button>
+</div>
+
+<div class="card c-ayuda">
+<details open><summary>Cómo se juega</summary>
+<p>Toca un círculo y escribe su número con el teclado de colores (o con el del ordenador). Cada número de fuera aparece solo, cuando sus dos círculos vecinos tienen número.</p>
+<p>Para resolverlo hacen falta <b>dos cosas</b>, como en el ejemplo (<b>1 + 2 + 4 = 7</b>, con 3, 5 y 6 fuera):</p>
+<ul>
+<li>Los círculos <b>suman</b> el número del centro.</li>
+<li><b>No se repite ningún número</b>: ni entre los círculos, ni entre los de fuera, ni entre unos y otros. Los repetidos se pintan de rojo.</li>
+</ul>
+<p>Cualquier solución vale. Si te atascas, la <b>pista</b> rellena un círculo.</p>
+</details>
+</div>
+</main>
+<canvas id="fx"></canvas>
+<script>
+const LEVELS=[
+ {k:3,N:7,nombre:'Ejemplo · 7'},
+ {k:4,N:13,nombre:'Cuadrado · 13'},
+ {k:5,N:21,nombre:'Pentágono · 21'},
+ {k:6,N:31,nombre:'Hexágono · 31'}
+];
+const COL=['#ff4f6d','#ff8a1f','#e5b800','#19c37d','#2f7bff','#a83ad0','#ff6fa5','#0e9f9f','#b5651d','#6c8cff','#7ac90a','#d6409f'];
+const $=id=>document.getElementById(id);
+const svg=$('svg'),msg=$('msg');
+let lv=0,K=3,N=7,vals=[],sel=0,hist=[],won=false,hintIdx=-1,solTok=0,SOLS=[],CLASES=0;
+
+// todas las soluciones (con giros y espejos): números positivos distintos que suman N y con los 2k números distintos
+function resolver(k,N){
+ const res=[],c=Array(k).fill(0),usados=new Set();
+ (function rec(i,s){
+  if(i===k){
+   if(s!==N)return;
+   const nums=new Set(c);
+   for(let j=0;j<k;j++){const a=c[j]+c[(j+1)%k];if(nums.has(a))return;nums.add(a)}
+   res.push(c.slice());return}
+  const resto=k-i-1;
+  for(let v=1;v<=N-s-resto;v++){if(usados.has(v))continue;c[i]=v;usados.add(v);rec(i+1,s+v);usados.delete(v)}
+ })(0,0);
+ return res}
+function clases(sols,k){
+ const set=new Set();
+ for(const a of sols){let best=null;
+  for(const b of [a,a.slice().reverse()])for(let r=0;r<k;r++){const s=b.slice(r).concat(b.slice(0,r)).join(',');if(best===null||s<best)best=s}
+  set.add(best)}
+ return set.size}
+
+function setLevel(i){
+ lv=i;K=LEVELS[i].k;N=LEVELS[i].N;SOLS=resolver(K,N);CLASES=clases(SOLS,K);
+ document.querySelectorAll('.lvl').forEach((b,j)=>b.classList.toggle('on',j===i));
+ $('metaV').textContent=N;
+ reset()}
+function reset(){solTok++;vals=Array(K).fill(0);sel=0;hist=[];won=false;hintIdx=-1;
+ say('Toca un círculo y escribe un número. Este nivel tiene <b>'+CLASES+'</b> '+(CLASES===1?'solución':'soluciones distintas')+' (sin contar giros ni espejos).');
+ render()}
+function say(t){msg.innerHTML=t}
+
+function arcs(){return vals.map((v,i)=>{const w=vals[(i+1)%K];return v>0&&w>0?v+w:0})}
+// números repetidos: todos los círculos y arcos conocidos
+function analiza(){
+ const cuenta=new Map(),a=arcs();
+ vals.forEach(v=>{if(v>0)cuenta.set(v,(cuenta.get(v)||0)+1)});
+ a.forEach(v=>{if(v>0)cuenta.set(v,(cuenta.get(v)||0)+1)});
+ const rep=new Set();cuenta.forEach((n,v)=>{if(n>1)rep.add(v)});
+ const suma=vals.reduce((s,v)=>s+v,0);
+ const lleno=vals.every(v=>v>0);
+ return {a,rep,suma,lleno,ok:lleno&&suma===N&&rep.size===0}}
+
+function pos(i,r){const ang=-Math.PI/2+i*2*Math.PI/K;return [r*Math.cos(ang),r*Math.sin(ang)]}
+function render(popIdx){
+ const R=128,rc=K<=4?42:K===5?38:34,an=analiza();
+ let s='<circle class="ring" r="'+R+'"/>';
+ // arcos (números de fuera), a mitad de camino entre dos círculos
+ for(let i=0;i<K;i++){
+  const ang=-Math.PI/2+(i+.5)*2*Math.PI/K,x=(R+60)*Math.cos(ang),y=(R+60)*Math.sin(ang);
+  const v=an.a[i],dup=v>0&&an.rep.has(v);
+  s+='<g class="arc'+(v?'':' unk')+(dup?' dup':'')+'" transform="translate('+x.toFixed(1)+' '+y.toFixed(1)+')"><rect x="-30" y="-24" width="60" height="48" rx="14"/><text>'+(v||'?')+'</text></g>'}
+ // círculos
+ vals.forEach((v,i)=>{
+  const [x,y]=pos(i,R),dup=v>0&&an.rep.has(v);
+  s+='<g transform="translate('+x.toFixed(1)+' '+y.toFixed(1)+')"><g class="node'+(v?'':' empty')+(i===sel?' sel':'')+(dup?' dup':'')+(i===hintIdx?' hint':'')+(i===popIdx?' pop':'')+(won?' win':'')+'" data-i="'+i+'"'+(won?' style="animation-delay:'+(i*90)+'ms"':'')+'>'
+   +'<circle class="halo" r="'+(rc+9)+'"/><circle class="c" r="'+rc+'" fill="'+(v?COL[(v-1)%COL.length]:'#fff')+'"/>'
+   +(v?'<text>'+v+'</text>':'')+'</g></g>'});
+ s+='<text class="centro" y="-8">'+N+'</text><text class="centro2" y="42">'+(an.suma||0)+' de '+N+'</text>';
+ svg.innerHTML=s;
+ svg.querySelectorAll('.node').forEach(g=>g.addEventListener('click',()=>{selecciona(+g.dataset.i)}));
+ $('sumaV').textContent=an.suma;$('repV').textContent=an.rep.size;
+ $('pSuma').className='pill'+(an.lleno&&an.suma!==N?' bad':an.suma===N?' ok':'');
+ $('pRep').className='pill'+(an.rep.size?' bad':'');
+ return an}
+function selecciona(i){sel=i;hintIdx=-1;render()}
+
+function cambia(i,v,popear){
+ if(won)return;
+ hist.push(vals.slice());vals[i]=v;hintIdx=-1;
+ const an=render(popear?i:undefined);
+ estado(an)}
+function estado(an){
+ if(an.ok){gana();return}
+ const rep=[...an.rep].sort((a,b)=>a-b);
+ if(rep.length)say('El número <b>'+rep.join(', ')+'</b> aparece más de una vez (en rojo). No se puede repetir ninguno.'+(an.lleno&&an.suma!==N?' Además, los círculos suman <b>'+an.suma+'</b> y tienen que sumar <b>'+N+'</b>.':''));
+ else if(an.lleno&&an.suma!==N)say('Los círculos suman <b>'+an.suma+'</b> y tienen que sumar <b>'+N+'</b>.');
+ else if(an.lleno)say('Casi…');
+ else say('Sigue: faltan <b>'+vals.filter(v=>!v).length+'</b> círculos. Suman <b>'+an.suma+'</b> de <b>'+N+'</b>.')}
+function gana(){
+ won=true;render();
+ const a=arcs();
+ say('🎉 <b>¡Resuelto!</b> '+vals.join(' + ')+' = '+N+', y fuera: '+a.join(', ')+'. No se repite ningún número.');
+ confeti()}
+
+// teclado de colores
+(function(){
+ let h='';for(let d=1;d<=9;d++)h+='<button style="background:'+COL[(d-1)%COL.length]+'" data-d="'+d+'">'+d+'</button>';
+ h+='<button style="background:#3a3a52" data-d="0">0</button><button class="del" data-d="x" aria-label="Borrar">⌫</button>';
+ $('pad').innerHTML=h;
+ $('pad').addEventListener('click',e=>{const b=e.target.closest('button');if(b)tecla(b.dataset.d)});
+})();
+function tecla(d){
+ if(won)return;
+ if(d==='x'){const v=Math.floor(vals[sel]/10);cambia(sel,v);return}
+ const n=+d;let v=vals[sel]*10+n;if(v>99||v===0)v=n;
+ if(v===0){cambia(sel,0);return}
+ cambia(sel,v,true)}
+document.addEventListener('keydown',e=>{
+ if(e.ctrlKey||e.metaKey||e.altKey)return;
+ if(/^[0-9]$/.test(e.key)){tecla(e.key);e.preventDefault()}
+ else if(e.key==='Backspace'||e.key==='Delete'){tecla('x');e.preventDefault()}
+ else if(e.key==='ArrowRight'||e.key==='Tab'&&!e.shiftKey){if(e.key==='Tab'&&document.activeElement&&document.activeElement.tagName==='BUTTON')return;selecciona((sel+1)%K);e.preventDefault()}
+ else if(e.key==='ArrowLeft'||e.key==='Tab'&&e.shiftKey){if(e.key==='Tab'&&document.activeElement&&document.activeElement.tagName==='BUTTON')return;selecciona((sel+K-1)%K);e.preventDefault()}
+ else if(e.key==='z'||e.key==='Z'){deshacer()}
+});
+
+// soluciones compatibles con lo escrito
+function compatibles(){return SOLS.filter(s=>vals.every((v,i)=>!v||s[i]===v))}
+$('bHint').onclick=()=>{
+ if(won||busy())return;
+ const cs=compatibles();
+ if(!cs.length){say('💡 Con lo que hay escrito <b>no se puede resolver</b>. Prueba a borrar el último círculo que pusiste (↩ Deshacer) y a cambiarlo.');return}
+ // círculo vacío con menos valores posibles
+ let mejor=-1,mn=1e9,opc=null;
+ for(let i=0;i<K;i++){if(vals[i])continue;const set=new Set(cs.map(s=>s[i]));if(set.size<mn){mn=set.size;mejor=i;opc=cs.find(s=>true)[i]}}
+ if(mejor<0){say('💡 Ya están todos los círculos escritos: mira la suma o los repetidos.');return}
+ sel=mejor;hintIdx=mejor;
+ hist.push(vals.slice());vals[mejor]=opc;
+ const an=render(mejor);
+ say('💡 Pista: en este círculo va un <b>'+opc+'</b>.'+(mn>1?' (Había '+mn+' valores posibles; este lleva a una solución.)':''));
+ if(an.ok)gana()};
+function busy(){return false}
+$('bSol').onclick=async()=>{
+ if(won)return;
+ const cs=compatibles(),s=(cs.length?cs:SOLS)[0],tok=++solTok;
+ hist.push(vals.slice());
+ vals=Array(K).fill(0);render();say('🔑 Te enseño una solución…');
+ for(let i=0;i<K;i++){
+  await new Promise(r=>setTimeout(r,520));
+  if(tok!==solTok)return;
+  vals[i]=s[i];sel=i;render(i)}
+ await new Promise(r=>setTimeout(r,500));
+ if(tok!==solTok)return;
+ const an=analiza();won=true;render();
+ say('🔑 Una solución: '+s.join(' + ')+' = '+N+', y fuera: '+an.a.join(', ')+'. Hay '+CLASES+' '+(CLASES===1?'solución':'soluciones distintas')+'.')};
+function deshacer(){solTok++;if(!hist.length)return;vals=hist.pop();won=false;hintIdx=-1;const an=render();estado(an)}
+$('bUndo').onclick=deshacer;
+$('bReset').onclick=reset;
+
+// niveles
+$('levels').innerHTML=LEVELS.map((l,i)=>'<button class="lvl" data-i="'+i+'">'+l.nombre+'</button>').join('');
+$('levels').addEventListener('click',e=>{const b=e.target.closest('.lvl');if(b)setLevel(+b.dataset.i)});
+
+// confeti
+const cv=$('fx'),cx=cv.getContext('2d');let parts=[],anim=false;
+function confeti(){
+ cv.width=innerWidth;cv.height=innerHeight;
+ for(let i=0;i<160;i++)parts.push({x:innerWidth/2,y:innerHeight/3,vx:(Math.random()-.5)*16,vy:-Math.random()*14-4,r:4+Math.random()*6,c:COL[i%COL.length],rot:Math.random()*6,vr:(Math.random()-.5)*.4,t:0});
+ if(!anim){anim=true;requestAnimationFrame(paso)}}
+function paso(){
+ cx.clearRect(0,0,cv.width,cv.height);
+ parts.forEach(p=>{p.t++;p.vy+=.35;p.x+=p.vx;p.y+=p.vy;p.rot+=p.vr;cx.save();cx.translate(p.x,p.y);cx.rotate(p.rot);cx.fillStyle=p.c;cx.fillRect(-p.r,-p.r/2,p.r*2,p.r);cx.restore()});
+ parts=parts.filter(p=>p.y<cv.height+20&&p.t<220);
+ if(parts.length)requestAnimationFrame(paso);else{anim=false;cx.clearRect(0,0,cv.width,cv.height)}}
+addEventListener('resize',()=>{cv.width=innerWidth;cv.height=innerHeight});
+
+setLevel(0);
+window.__juego={get vals(){return vals},get won(){return won},get SOLS(){return SOLS},setLevel,tecla,selecciona,get N(){return N},get K(){return K}};
+</script>
+</body>
+</html>
