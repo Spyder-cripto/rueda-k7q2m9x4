@@ -70,7 +70,7 @@ summary{cursor:pointer;font-weight:bold}
 <body>
 <main>
 <h1>La rueda de sumas</h1>
-<p class="sub">Los círculos suman el número del centro. Con un círculo, o con varios <b>seguidos</b>, hay que conseguir <b>todos los números menores</b>, una vez cada uno.</p>
+<p class="sub">Con un círculo, o con varios <b>seguidos</b>, hay que conseguir <b>todas las sumas</b> hasta la del centro (la de todos los círculos), una vez cada una.</p>
 
 <div class="card c-juego">
  <div class="levels" id="levels"></div>
@@ -97,8 +97,8 @@ summary{cursor:pointer;font-weight:bold}
 <p>Toca un círculo y escribe su número con el teclado de colores (o con el del ordenador). Los números de fuera son la suma de los dos círculos vecinos y aparecen solos.</p>
 <p>El criterio, como en el ejemplo (círculos <b>1, 2 y 4</b>, centro <b>7</b>):</p>
 <ul>
-<li>Los círculos <b>suman</b> el número del centro: 1 + 2 + 4 = 7.</li>
-<li>Hay que conseguir <b>todos los números del 1 hasta uno menos que el centro</b>, ya sea con un círculo solo o sumando <b>círculos seguidos</b> (dos, tres… dando la vuelta si hace falta): 1, 2, 4; 1+2 = 3; 4+1 = 5; 2+4 = 6.</li>
+<li>Hay que conseguir <b>todos los números, del 1 hasta el del centro</b>, ya sea con un círculo solo o sumando <b>círculos seguidos</b> (dos, tres… dando la vuelta si hace falta): 1, 2, 4; 1+2 = 3; 4+1 = 5; 2+4 = 6.</li>
+<li>El <b>número del centro</b> se consigue sumando <b>todos los círculos</b>: 1 + 2 + 4 = 7.</li>
 <li>Cada número sale <b>una sola vez</b>. Los repetidos se ponen en rojo, y la fila de abajo se va iluminando con los números que ya tienes.</li>
 </ul>
 <p>Si te atascas, la <b>pista</b> rellena un círculo.</p>
@@ -118,8 +118,8 @@ const $=id=>document.getElementById(id);
 const svg=$('svg'),msg=$('msg');
 let lv=0,K=3,N=7,vals=[],sel=0,hist=[],won=false,hintIdx=-1,solTok=0,SOLS=[],CLASES=0;
 
-// el criterio (comentario de Spider en el blog): los k círculos suman N y TODOS los números del 1 al N-1 se consiguen,
-// una vez cada uno, como un círculo solo o como la suma de círculos contiguos (dando la vuelta al anillo si hace falta)
+// el criterio (comentario de Spider en el blog): TODOS los números del 1 al N se consiguen, una vez cada uno, como un círculo solo
+// o como la suma de círculos contiguos (dando la vuelta al anillo si hace falta); el N es la suma de todos los círculos (el centro)
 function arcosOk(c,N){
  const k=c.length,vistos=new Set();
  for(let i=0;i<k;i++){let s=0;for(let l=1;l<k;l++){s+=c[(i+l-1)%k];if(s>=N||vistos.has(s))return false;vistos.add(s)}}
@@ -144,7 +144,7 @@ function setLevel(i){
  $('metaV').textContent=N;
  reset()}
 function reset(){solTok++;vals=Array(K).fill(0);sel=0;hist=[];won=false;hintIdx=-1;
- say('Toca un círculo y escribe un número. Hay que conseguir todos los números del <b>1</b> al <b>'+(N-1)+'</b>. Este nivel tiene <b>'+CLASES+'</b> '+(CLASES===1?'solución':'soluciones distintas')+' (sin contar giros ni espejos).');
+ say('Toca un círculo y escribe un número. Hay que conseguir todas las sumas, del <b>1</b> al <b>'+N+'</b>. Este nivel tiene <b>'+CLASES+'</b> '+(CLASES===1?'solución':'soluciones distintas')+' (sin contar giros ni espejos).');
  render()}
 function say(t){msg.innerHTML=t}
 
@@ -153,11 +153,12 @@ function arcs(){return vals.map((v,i)=>{const w=vals[(i+1)%K];return v>0&&w>0?v+
 function analiza(){
  const cuenta=new Map(),a=arcs();
  for(let i=0;i<K;i++){let s=0;for(let l=1;l<K;l++){const v=vals[(i+l-1)%K];if(!v)break;s+=v;cuenta.set(s,(cuenta.get(s)||0)+1)}}
- const rep=new Set(),cub=new Set();
- cuenta.forEach((n,v)=>{if(v<N)cub.add(v);if(n>1||v>=N)rep.add(v)});
  const suma=vals.reduce((s,v)=>s+v,0);
  const lleno=vals.every(v=>v>0);
- return {a,rep,cub,cuenta,suma,lleno,ok:lleno&&suma===N&&rep.size===0&&cub.size===N-1}}
+ if(lleno)cuenta.set(suma,(cuenta.get(suma)||0)+1);   // todos los círculos juntos: es el número del centro
+ const rep=new Set(),cub=new Set();
+ cuenta.forEach((n,v)=>{if(v<=N)cub.add(v);if(n>1||v>N)rep.add(v)});
+ return {a,rep,cub,cuenta,suma,lleno,ok:lleno&&suma===N&&rep.size===0&&cub.size===N}}
 
 function pos(i,r){const ang=-Math.PI/2+i*2*Math.PI/K;return [r*Math.cos(ang),r*Math.sin(ang)]}
 function render(popIdx){
@@ -177,10 +178,10 @@ function render(popIdx){
  s+='<text class="centro" y="-8">'+N+'</text><text class="centro2" y="42">'+(an.suma||0)+' de '+N+'</text>';
  svg.innerHTML=s;
  svg.querySelectorAll('.node').forEach(g=>g.addEventListener('click',()=>{selecciona(+g.dataset.i)}));
- $('sumaV').textContent=an.suma;$('repV').textContent=an.rep.size;$('cubV').textContent=an.cub.size;$('cubM').textContent=N-1;
- $('chips').innerHTML=Array.from({length:N-1},(_,i)=>{const v=i+1,c=an.cuenta.get(v)||0;return '<span class="chip'+(c>1?' dup':c===1?' on':'')+'">'+v+'</span>'}).join('');
+ $('sumaV').textContent=an.suma;$('repV').textContent=an.rep.size;$('cubV').textContent=an.cub.size;$('cubM').textContent=N;
+ $('chips').innerHTML=Array.from({length:N},(_,i)=>{const v=i+1,c=an.cuenta.get(v)||0;return '<span class="chip'+(c>1?' dup':c===1?' on':'')+'">'+v+'</span>'}).join('');
  $('pSuma').className='pill'+(an.lleno&&an.suma!==N?' bad':an.suma===N?' ok':'');
- $('pCub').className='pill'+(an.cub.size===N-1&&!an.rep.size?' ok':'');$('pRep').className='pill'+(an.rep.size?' bad':'');
+ $('pCub').className='pill'+(an.cub.size===N&&!an.rep.size?' ok':'');$('pRep').className='pill'+(an.rep.size?' bad':'');
  return an}
 function selecciona(i){sel=i;hintIdx=-1;render()}
 
@@ -195,11 +196,11 @@ function estado(an){
  if(rep.length)say('El número <b>'+rep.join(', ')+'</b> se consigue más de una vez (en rojo). Cada número tiene que salir una sola vez.'+(an.lleno&&an.suma!==N?' Además, los círculos suman <b>'+an.suma+'</b> y tienen que sumar <b>'+N+'</b>.':''));
  else if(an.lleno&&an.suma!==N)say('Los círculos suman <b>'+an.suma+'</b> y tienen que sumar <b>'+N+'</b>.');
  else if(an.lleno)say('Casi…');
- else say('Sigue: faltan <b>'+vals.filter(v=>!v).length+'</b> círculos. Llevas <b>'+an.cub.size+'</b> de los <b>'+(N-1)+'</b> números.')}
+ else say('Sigue: faltan <b>'+vals.filter(v=>!v).length+'</b> círculos. Llevas <b>'+an.cub.size+'</b> de los <b>'+N+'</b> números.')}
 function gana(){
  won=true;render();
  const a=arcs();
- say('🎉 <b>¡Resuelto!</b> '+vals.join(' + ')+' = '+N+'. Salen todos los números del 1 al '+(N-1)+', una sola vez cada uno.');
+ say('🎉 <b>¡Resuelto!</b> '+vals.join(' + ')+' = '+N+'. Salen todos los números del 1 al '+N+', una sola vez cada uno (el '+N+' es la suma de todos los círculos).');
  confeti()}
 
 // teclado de colores
